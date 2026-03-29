@@ -1,6 +1,7 @@
 package agents
 
 import (
+	"agent-cli/llms"
 	"agent-cli/types"
 	"fmt"
 )
@@ -22,37 +23,34 @@ func (a *Agent) RegisterTool(tool types.Tool) {
 }
 
 func (a *Agent) Run(input string) {
-	a.History = append(a.History, types.Message{
-		Role:    "user",
-		Content: input,
-	})
 
-	resp := FakeLLM(input)
+	prompt := BuildPrompt(input)
 
-	if resp.ToolCall != nil {
-		tool, exists := a.Tools[resp.ToolCall.Name]
+	for i := 0; i < 5; i++ {
+		llmText, err := llms.CallDeepSeek(prompt)
+		if err != nil {
+			fmt.Println("LLM error: ", err)
+			return
+		}
 
+		toolCall := ParseToolCall(llmText)
+
+		if toolCall == nil {
+			fmt.Println("Agent: ", llmText)
+			return
+		}
+
+		tool, exists := a.Tools[toolCall.Name]
 		if !exists {
-			fmt.Println("Error: tool not found: ", resp.ToolCall.Name)
+			fmt.Println("Tool not found: ", toolCall.Name)
 			return
 		}
 
-		if tool.Execute == nil {
-			fmt.Println("Error: tool has no execution function: ", resp.ToolCall.Name)
-			return
-		}
+		result := tool.Execute(toolCall.Args)
 
-		result := tool.Execute(resp.ToolCall.Args)
+		fmt.Println("Tool Result: ", result)
 
-		fmt.Println("Tool Result:")
-		fmt.Println(result)
-
-		a.History = append(a.History, types.Message{
-			Role:    "tool",
-			Content: result,
-		})
-		return
+		prompt = prompt + "\nTool result:\n" + result
 	}
 
-	fmt.Println("Agent: ", resp.Text)
 }
