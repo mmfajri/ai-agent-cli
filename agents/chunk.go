@@ -72,3 +72,7 @@ func LoadFromFile(path string) (*store, error) {
 	}
 	return &s, nil
 }
+
+func NewStore(c []Chunk) *store {
+	return &store{Chunks: c}
+}

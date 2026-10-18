@@ -9,6 +9,7 @@ import (
 type Agent struct {
 	Tools   map[string]types.Tool
 	History []types.Message
+	Store   *store
 }
 
 func NewAgent() *Agent {
@@ -23,8 +24,13 @@ func (a *Agent) RegisterTool(tool types.Tool) {
 }
 
 func (a *Agent) Run(input string) {
-
-	prompt := BuildPrompt(input)
+	vector, err := Embed(input)
+	if err != nil {
+		fmt.Println("Embed error: ", err)
+		return
+	}
+	context := a.Store.Search(vector, 3)
+	prompt := BuildPrompt(input, context)
 
 	for i := 0; i < 5; i++ {
 		llmText, err := llms.CallDeepSeek(prompt)
