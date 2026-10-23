@@ -3,7 +3,6 @@ package tools
 import (
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 )

@@ -23,14 +23,35 @@ func (a *Agent) RegisterTool(tool types.Tool) {
 	a.Tools[tool.Name] = tool
 }
 
+func (a *Agent) SaveToMemoryTool() types.Tool {
+	return types.Tool{
+		Name:        "save_to_memory",
+		Description: "Save a piece of learned information for future recall",
+		Execute: func(args map[string]string) string {
+			text := args["content"]
+			vector, err := Embed(text)
+			if err != nil {
+				return err.Error()
+			}
+			a.Store.Add(Chunk{Text: text, Vector: vector, Source: "memory"})
+			if err := a.Store.SaveToFile("store.json"); err != nil {
+				return err.Error()
+			}
+			return "Saved to memory"
+		},
+	}
+}
+
 func (a *Agent) Run(input string) {
+	a.History = append(a.History, types.Message{Role: "user", Content: input})
+
 	vector, err := Embed(input)
 	if err != nil {
 		fmt.Println("Embed error: ", err)
 		return
 	}
 	context := a.Store.Search(vector, 3)
-	prompt := BuildPrompt(input, context)
+	prompt := BuildPrompt(input, context, a.History)
 
 	for i := 0; i < 5; i++ {
 		llmText, err := llms.CallDeepSeek(prompt)
@@ -43,13 +64,25 @@ func (a *Agent) Run(input string) {
 
 		if toolCall == nil {
 			fmt.Println("Agent: ", llmText)
+			a.History = append(a.History, types.Message{Role: "assistant", Content: llmText})
 			return
 		}
 
 		tool, exists := a.Tools[toolCall.Name]
 		if !exists {
 			fmt.Println("Tool not found: ", toolCall.Name)
-			return
+			prompt = prompt + "\nError: tool '" + toolCall.Name + "' does not exist. Use one of the available tools listed above.\n"
+			continue
+		}
+
+		if toolCall.Name == "delete_file" {
+			fmt.Printf("Confirm delete of %s? (y/n): ", toolCall.Args["path"])
+			var resp string
+			fmt.Scanln(&resp)
+			if resp != "y" {
+				fmt.Println("Delete  cancelled")
+				return
+			}
 		}
 
 		result := tool.Execute(toolCall.Args)

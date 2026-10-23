@@ -27,7 +27,7 @@ func CallDeepSeek(prompt string) (string, error) {
 	jsonData, _ := json.Marshal(reqBody)
 
 	resp, err := http.Post(
-		"http://ollama:14434/api/generate",
+		"http://localhost:11434/api/generate",
 		"application/json",
 		bytes.NewBuffer(jsonData),
 	)

@@ -25,7 +25,9 @@ func ParseToolCall(text string) *types.ToolCall {
 
 	args := make(map[string]string)
 	for k, v := range argsRaw {
-		args[k] = v.(string)
+		if s, ok := v.(string); ok {
+			args[k] = s
+		}
 	}
 
 	return &types.ToolCall{

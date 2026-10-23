@@ -27,7 +27,7 @@ func Embed(text string) ([]float32, error) {
 	}
 
 	resp, err := http.Post(
-		"http://ollama:14434/api/embeddings",
+		"http://localhost:11434/api/embeddings",
 		"application/json",
 		bytes.NewBuffer(jsonData),
 	)

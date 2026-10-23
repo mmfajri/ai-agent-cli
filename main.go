@@ -10,16 +10,26 @@ import (
 	"strings"
 )
 
+const storePath = "store.json"
+
 func main() {
 	fmt.Println("Welcome To Agent LLM with Deepseek Coder")
 
 	agent := agents.NewAgent()
 	agent.Store = agents.NewStore(nil)
 
-	if err := agents.IndexDirectory(".", agent.Store); err != nil {
-		fmt.Println("Index error", err)
+	loadedStore, err := agents.LoadFromFile(storePath)
+	if err != nil {
+		fmt.Println("No existing store found, indexing...")
+		loadedStore = agents.NewStore(nil)
+		if err := agents.IndexDirectory(".", loadedStore); err != nil {
+			fmt.Println("Index error", err)
+		}
+		loadedStore.SaveToFile(storePath)
 	}
-	agent.Store.SaveToFile("store.json")
+	agent.Store = loadedStore
+
+	agent.RegisterTool(agent.SaveToMemoryTool())
 
 	agent.RegisterTool(types.Tool{
 		Name:        "list_files",
@@ -55,6 +65,11 @@ func main() {
 		Name:        "delete_file",
 		Description: "Delete files to certain directory within project directory without touching the main system directory",
 		Execute:     tools.DeleteFile,
+	})
+	agent.RegisterTool(types.Tool{
+		Name:        "search_internet",
+		Description: "Search the internet for information not available locally",
+		Execute:     tools.SearchInternet,
 	})
 
 	reader := bufio.NewReader(os.Stdin)
